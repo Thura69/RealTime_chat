@@ -1,0 +1,220 @@
+'use client'
+import { Conversation, User } from '@prisma/client'
+import React, { FC, Fragment, useMemo, useState } from 'react'
+import useOtherUser from '../hooks/useOtherUser'
+import { format } from 'date-fns'
+import { Dialog, Transition } from '@headlessui/react'
+import {IoMdClose,IoMdTrash} from 'react-icons/io'
+import { Avatar } from './Avatar'
+import { ConfirmModal } from '../conversations/[conversationId]/components/ConfirmModal'
+import { AvatarGroup } from './AvatarGroup'
+import activeUserList from '../hooks/useActiveList'
+
+
+interface ProfileDrawerProps{
+    isOpen: boolean,
+    onClose: () => void,
+    data: Conversation & {
+        user:User[]
+    }
+};
+
+export const ProfileDrawer: FC<ProfileDrawerProps> = ({
+    isOpen,
+    onClose,
+    data
+}) => {
+    const otherUser = useOtherUser(data);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const { members } = activeUserList();
+
+     const isActive = members.indexOf(otherUser?.email!) !== -1;
+
+    const joinDate = useMemo(() => {
+      return  format(new Date(otherUser.createdAt),'PP')
+    }, [otherUser.createdAt]);
+
+    const title = useMemo(() => {
+        return data.name || otherUser.name;
+    }, [data.name, otherUser.name]);
+    
+    const statusText = useMemo(() => {
+        if (data.isGroup) {
+            return `${data.user.length} members`
+        } 
+        return isActive ? "Active":"Offline"
+    }, [data,isActive]);
+
+  return (
+      <>
+          <ConfirmModal isOpen={confirmOpen} onClose={() => {setConfirmOpen(false) }} >
+
+          </ConfirmModal>
+       <Transition.Root show={isOpen} as={Fragment}>
+    <Dialog as="div" className={'relative z-50 pointer-events-none '}  onClose={onClose}>
+       <Transition.Child 
+       enter="ease-out duration-500"
+       as={Fragment} 
+       enterFrom='opacity-0'
+       enterTo='opacity-100'
+       leave='ease-in duration-500'
+       leaveFrom='opacity-100'
+       leaveTo='opacity-0'
+       >
+        <div
+        className='
+        fixed
+        inset-0
+        bg-black
+        bg-opacity-40
+        '
+        >
+            
+        </div>
+       </Transition.Child>
+       <div className='fixed inset-0 overflow-hidden'>
+        <div className=' absolute inset-0  overflow-hidden'>
+            <div className='
+             pointer-events-none
+             fixed
+             inset-y-0
+             right-0
+             max-w-full
+             pl-10
+            '>
+            <Transition.Child 
+            as={Fragment} 
+            enterFrom=' translate-x-full' 
+            enter='transform transition east-in-out duration-500'
+            enterTo='translate-x-0'
+            leave=' transform transition ease-in-out duration-500'
+            leaveTo=' translate-x-full'
+            >
+            <Dialog.Panel className={'pointer-events-auto w-screen max-w-md'}>
+            <div className='flex h-[100svh]  flex-col overflow-y-scroll bg-white py-6 shadow-xl right-0'>
+            <div className='px-4 sm:px-6'>
+                <div
+                 className='flex items-start justify-end'
+                 >
+                    <div className='
+                    ml-3
+                    flex
+                    h-7
+                    items-center
+                    '>
+                    <button 
+                    type='button' 
+                    className='
+                    rounded-md
+                    bg-white
+                    text-gray-400
+                     hover:text-gray-500
+                     focus:outline-none
+                     focus:ring-purple-500
+                     focus:ring-2
+                     '>
+                     <span className='sr-only'>Close Panel</span>  
+                     <IoMdClose size={24} onClick={onClose}/> 
+                     </button>    
+                    </div>
+                </div>
+            </div>
+            <div className='
+             relative
+             flex-1
+             mt-6
+             px-4
+             sm:px-6
+            '>
+            <div className='flex flex-col items-center'>
+            <div className='mb-2'>
+                {
+                    data.isGroup? <AvatarGroup users={data.user}/>:  <Avatar user={otherUser}/>
+                }
+            </div>
+            <div>
+            {title}
+            </div>
+            <div className='text-xs text-gray-500'>
+            {statusText}
+            </div>
+            <div className='flex gap-10 my-8'>
+            <div 
+            onClick={()=>setConfirmOpen(true)}
+            className='flex flex-col gap-3 items-center cursor-pointer hover:opacity-75'
+            >
+            <div className=' w-10 h-10  bg-neutral-100 rounded-full flex items-center justify-center'>
+            <IoMdTrash  size={20}/>
+            </div>
+            <div className=' text-sm font-light text-neutral-600'>Delete</div>
+            </div>
+            </div>
+            <div 
+            className=' 
+            w-full
+            pb-5
+            pt-5
+            sm:px-0
+            sm:pt-0'>
+            <dl className='
+             space-y-8
+             px-4
+             sm:space-y-6
+             sm:px-6
+            '>
+                {
+                    data.isGroup && (
+                        <div>
+                            <dt className='text-sm font-medium text-gray-500 sm:w-40 sm:flex-shrink-0'>
+                                Emails
+                            </dt>
+                            <dd className=' mt-1  text-sm  text-gray-900 sm:col-span-2 '>
+                                {
+                                    data.user.map((user)=> user.email).join(', ')
+                                }
+                            </dd>
+                        </div>
+                    )
+                }
+                {!data.isGroup && (
+                    <div>
+                        <dt className='text-sm font-medium text-gray-500 sm:w-40 sm:flex-shrink-0'>
+                            Email
+                        </dt>
+                        <dd className='mt-1 text-sm text-gray-900 sm:col-span-2'>
+                          {otherUser.email}  
+                        </dd>
+                    </div>
+                )}
+                {
+                    !data.isGroup && (
+                        <>
+                        <hr/>
+                        <div>
+                            <dt className=' text-sm font-medium text-gray-500  sm:w-40 sm:flex-shrink-0'>
+                                Joined
+                            </dt>
+                            <dd className='mt-1  text-sm text-gray-900 sm:col-span-2'>
+                                <time dateTime={joinDate}>
+                                    {joinDate}
+                                </time>
+                            </dd>
+                        </div>
+                        </>
+                    )
+                }
+            </dl>
+            </div>
+            </div>
+            </div>
+            </div>    
+            </Dialog.Panel>
+            </Transition.Child> 
+            </div>
+        </div>
+       </div>
+    </Dialog>
+   </Transition.Root>
+      </>
+  )
+}
